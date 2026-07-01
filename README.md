@@ -2,6 +2,9 @@
 
 단일 HTML 파일로 동작하는 신경망 학습 시각화 도구입니다. Canvas 2D를 사용하며 외부 라이브러리가 필요 없습니다.
 
+## URL
+https://byh020907.github.io/backprop-visualizer/
+
 ## 사용법
 
 `index.html`을 브라우저에서 열면 됩니다.
