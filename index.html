@@ -716,7 +716,6 @@ class Visualizer {
         ctx.textBaseline = 'top';
         const ox = this.w - 12;
         const oy = outLayer[0] ? outLayer[0].y - 10 : 20;
-        const oy = outLayer[0] ? outLayer[0].y - 10 : 20;
         ctx.fillStyle = '#1a7f37';
         ctx.fillText(`출력: [${outputVals.map(v => v.toFixed(4)).join(', ')}]`, ox, oy);
 
