@@ -712,9 +712,10 @@ class Visualizer {
       const outputVals = nn.as[nn.as.length - 1];
       if (outputVals) {
         ctx.font = '11px Consolas, sans-serif';
-        ctx.textAlign = 'left';
+        ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
-        const ox = outLayer[0] ? outLayer[0].x + outLayer[0].radius + 10 : 20;
+        const ox = this.w - 12;
+        const oy = outLayer[0] ? outLayer[0].y - 10 : 20;
         const oy = outLayer[0] ? outLayer[0].y - 10 : 20;
         ctx.fillStyle = '#1a7f37';
         ctx.fillText(`출력: [${outputVals.map(v => v.toFixed(4)).join(', ')}]`, ox, oy);
