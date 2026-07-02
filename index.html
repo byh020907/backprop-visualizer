@@ -715,7 +715,7 @@ class Visualizer {
         ctx.textAlign = 'right';
         ctx.textBaseline = 'top';
         const ox = this.w - 12;
-        const oy = outLayer[0] ? outLayer[0].y - 10 : 20;
+        const oy = 10;
         ctx.fillStyle = '#1a7f37';
         ctx.fillText(`출력: [${outputVals.map(v => v.toFixed(4)).join(', ')}]`, ox, oy);
 
@@ -1000,6 +1000,7 @@ function doStep() {
   doForward();
   if (nn) updateUI(`한 바퀴 완료  |  오차: ${nn.loss.toFixed(6)}`);
   viz.draw(nn);
+  if (selectedNeuron) showNeuronDetail(selectedNeuron.layer, selectedNeuron.idx);
 }
 
 function resetNetwork() {
