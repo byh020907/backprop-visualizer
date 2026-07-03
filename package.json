@@ -1,0 +1,21 @@
+{
+  "name": "backprop_visualization",
+  "version": "1.0.0",
+  "description": "Canvas 2D + Alpine.js 기반의 신경망 학습 시각화 도구입니다.",
+  "private": true,
+  "scripts": {
+    "start": "npx http-server . -p 8000 -c-1 --cors",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/byh020907/backprop-visualizer.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/byh020907/backprop-visualizer/issues"
+  },
+  "homepage": "https://github.com/byh020907/backprop-visualizer#readme"
+}

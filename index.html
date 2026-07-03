@@ -4,1111 +4,259 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>순전파 / 역전파 / 가중치 업데이트 시각화</title>
-<style>
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,'Segoe UI',sans-serif;background:#f0f2f5;color:#1f2328;height:100vh;overflow:hidden;display:flex;flex-direction:column}
-.header{flex-shrink:0;background:#ffffff;border-bottom:1px solid #d0d7de;padding:16px 24px;text-align:center}
-.header h1{font-size:20px;color:#0969da;letter-spacing:-0.3px}
-.header h1 small{font-size:13px;color:#656d76;margin-left:10px;font-weight:400}
-.main-wrap{flex:1;min-height:0;display:grid;grid-template-columns:280px 1fr;gap:0;overflow:hidden}
-.panel-left{background:#ffffff;border-right:1px solid #d0d7de;padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:14px}
-.panel-left label{display:block;font-size:12px;font-weight:600;color:#656d76;margin-bottom:3px;text-transform:uppercase;letter-spacing:0.5px}
-.panel-left input,.panel-left select{width:100%;padding:7px 10px;background:#ffffff;border:1px solid #d0d7de;border-radius:6px;color:#1f2328;font-size:13px;font-family:inherit;outline:none;transition:border-color .2s}
-.panel-left input:focus{border-color:#0969da}
-.panel-left input[type=number]{-moz-appearance:textfield}
-.panel-left .input-group{margin-bottom:4px}
-.panel-left .hint{font-size:11px;color:#656d76;margin-top:2px}
-.btn-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:4px}
-.btn{padding:7px 14px;border:1px solid #d0d7de;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;background:#f6f8fa;color:#1f2328;font-family:inherit}
-.btn:hover{background:#e8eaed;border-color:#656d76}
-.btn-primary{background:#2da44e;border-color:#2da44e;color:#fff}
-.btn-primary:hover{background:#2c974b}
-.btn-danger{background:#cf222e;border-color:#cf222e;color:#fff}
-.btn-danger:hover{background:#a40e26}
-.btn-warning{background:#bf8700;border-color:#bf8700;color:#fff}
-.btn-warning:hover{background:#9a6700}
-.btn:disabled{opacity:0.4;cursor:not-allowed}
-.panel-right{display:flex;flex-direction:column;overflow:hidden}
-.panel-right-main{flex:1;display:flex;flex-direction:row;overflow:hidden;min-height:0}
-.canvas-wrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;background:#f5f5f5;overflow:hidden}
-.detail-sidebar{width:340px;border-left:1px solid #d0d7de;background:#ffffff;display:flex;flex-direction:column;overflow-y:auto}
-.detail-sidebar .dp-body .dp-content{display:none}
-.detail-sidebar .dp-body .dp-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:200px;color:#8c959f;font-size:13px;gap:8px;text-align:center;padding:20px}
-.detail-sidebar.has-content .dp-body .dp-content{display:block}
-.detail-sidebar.has-content .dp-body .dp-placeholder{display:none}
-#netCanvas{width:100%;height:100%;display:block}
-.info-bar{background:#ffffff;border-top:1px solid #d0d7de;padding:8px 16px;display:flex;gap:20px;font-size:12px;flex-wrap:wrap;min-height:36px;align-items:center}
-.info-item{display:flex;align-items:center;gap:5px}
-.info-item .label{color:#656d76}
-.info-item .value{color:#1f2328;font-weight:600;font-family:'Consolas','Courier New',monospace}
-.info-item .value.good{color:#1a7f37}
-.info-item .value.bad{color:#cf222e}
-.info-item .value.warn{color:#9a6700}
-.status-msg{flex:1;text-align:right;color:#656d76;font-style:italic;font-size:11px}
-.status-msg.active{color:#0969da;font-style:normal}
-.ctrl-bar{background:#ffffff;border-top:1px solid #d0d7de;padding:10px 16px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.ctrl-bar .sep{width:1px;height:24px;background:#d0d7de;margin:0 4px}
-.legend-wrap{display:flex;gap:14px;margin-left:auto;font-size:11px;color:#656d76;align-items:center}
-.legend-item{display:flex;align-items:center;gap:4px}
-.legend-dot{width:12px;height:4px;border-radius:2px}
-.legend-dot.pos{background:#0969da}
-.legend-dot.neg{background:#cf222e}
-.legend-dot.grad{background:#9a6700}
-.detail-sidebar .dp-head{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #d0d7de;position:sticky;top:0;background:#ffffff;z-index:1}
-.detail-sidebar .dp-head h3{font-size:13px;color:#0969da;margin:0;line-height:1.3}
-.detail-sidebar .dp-close{background:none;border:none;color:#656d76;cursor:pointer;font-size:16px;padding:0 4px}
-.detail-sidebar .dp-close:hover{color:#cf222e}
-.detail-sidebar .dp-body{padding:12px 14px;overflow-y:auto;flex:1}
-.detail-sidebar .dp-section{margin-bottom:12px}
-.detail-sidebar .dp-section h4{font-size:11px;color:#656d76;text-transform:uppercase;margin-bottom:4px;letter-spacing:0.3px}
-.detail-sidebar table{width:100%;border-collapse:collapse;font-size:11px;font-family:'Consolas','Courier New',monospace}
-.detail-sidebar th,.detail-sidebar td{padding:2px 4px;text-align:right;border-bottom:1px solid #e0e4e8}
-.detail-sidebar th{color:#656d76;font-weight:600;text-align:right;font-size:9px}
-.detail-sidebar td:first-child,.detail-sidebar th:first-child{text-align:left}
-.detail-sidebar .formula{background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:8px 10px;font-family:'Consolas','Courier New',monospace;font-size:11px;line-height:1.5;color:#1f2328;white-space:pre-wrap;overflow-x:auto}
-.detail-sidebar .ex-calc{font-size:10px;color:#656d76;margin-top:4px;padding:4px 6px;background:#f6f8fa;border-radius:4px;font-family:Consolas,monospace;min-height:18px;white-space:pre-wrap;line-height:1.5}
-.detail-sidebar .formula .hl{color:#9a6700}
-.detail-sidebar .formula .hl2{color:#1a7f37}
-.detail-sidebar .formula .hl3{color:#cf222e}
-.detail-sidebar .dp-hint{font-size:10px;color:#8c959f;text-align:center;padding:6px}
-.detail-sidebar .tag{display:inline-block;padding:1px 5px;border-radius:3px;font-size:9px;font-weight:600;margin-left:4px}
-.detail-sidebar .tag.grad{background:rgba(154,103,0,0.12);color:#9a6700}
-.detail-sidebar .tag.upd{background:rgba(26,127,55,0.12);color:#1a7f37}
-.detail-sidebar td.wcol{color:#0969da;font-weight:700;font-size:12px;background:rgba(9,105,218,0.06)}
-.detail-sidebar table+p{font-size:10px;color:#656d76;margin-top:2px}
-.detail-panel .tag{display:inline-block;padding:1px 6px;border-radius:3px;font-size:9px;font-weight:600;margin-left:4px}
-.detail-panel .tag.grad{background:rgba(154,103,0,0.12);color:#9a6700}
-.detail-panel .tag.upd{background:rgba(26,127,55,0.12);color:#1a7f37}
-.click-hint{position:absolute;bottom:8px;right:12px;font-size:10px;color:#8c959f;background:rgba(255,255,255,0.85);padding:3px 8px;border-radius:4px;pointer-events:none}
-@media(max-width:768px){
-  .main-wrap{grid-template-columns:1fr;height:auto}
-  .panel-left{max-height:200px}
-  .canvas-wrap{min-height:40vh}
-  .detail-sidebar{width:100%}
-}
-</style>
+<link rel="stylesheet" href="src/styles.css">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.3/dist/cdn.min.js"></script>
+<script type="module" src="src/app.js"></script>
 </head>
-<body>
-<div class="header"><h1>순전파 · 역전파 · 가중치 업데이트 <small>Backpropagation Visualizer</small></h1></div>
-<div class="main-wrap">
-  <div class="panel-left">
-    <div class="input-group">
-      <label>입력층 뉴런 수</label>
-      <input type="number" id="inputSize" value="3" min="1" max="10">
-    </div>
-    <div class="input-group">
-      <label>은닉층 (쉼표 구분, 레이어 수만큼)</label>
-      <input type="text" id="hiddenLayers" value="3,3" placeholder="예: 4,3 (2개 은닉층)">
-      <div class="hint">예: <code>4,3</code> → 첫째 은닉 4개, 둘째 은닉 3개</div>
-      <div class="hint" style="color:#0969da">왜? → <strong>비선형 변환</strong>이 없으면 층을 깊게 쌓아도 의미 없음</div>
-    </div>
-    <div class="input-group">
-      <label>출력층 뉴런 수</label>
-      <input type="number" id="outputSize" value="3" min="1" max="10">
-    </div>
-    <div class="input-group">
-      <label>입력값 (쉼표 구분)</label>
-      <input type="text" id="inputValues" value="1,2,3">
-    </div>
-    <div class="input-group">
-      <label>목표값 (쉼표 구분)</label>
-      <input type="text" id="targetValues" value="10,20,60">
-    </div>
-    <div class="input-group">
-      <label>학습률</label>
-      <input type="number" id="learningRate" value="0.05" min="0.001" max="10" step="0.005">
-      <div class="hint" style="color:#0969da">왜? → 너무 크면 발산, 너무 작으면 느림. 보통 0.01~0.1 사용</div>
-    </div>
-    <div class="input-group">
-      <label>출력층 활성화함수</label>
-      <select id="outputActivation">
-        <option value="sigmoid">시그모이드 (0~1로 제한)</option>
-        <option value="linear" selected>변환없음 (제한 없음)</option>
-      </select>
-      <div class="hint">은닉층은 항상 시그모이드. 출력층만 설정 변경 가능</div>
-      <div class="hint" style="color:#0969da">왜? → 시그모이드는 출력을 0~1로 제한. 목표가 범위 밖이면 Linear 선택</div>
-    </div>
-    <button class="btn btn-primary" id="initBtn">🔄 네트워크 초기화</button>
-    <div class="hint" style="color:#0969da">왜? → 가중치를 랜덤으로 다시 시작. 설정 바꾼 후 반드시 누르세요</div>
-    <hr style="border-color:#d0d7de;margin:2px 0">
-    <div class="input-group">
-      <label>난수 시드</label>
-      <input type="number" id="seed" value="42">
-      <div class="hint">같은 시드 = 같은 초기 가중치</div>
-      <div class="hint" style="color:#0969da">왜? → 실험 재현용. 시드가 다르면 시작 가중치가 달라짐</div>
-    </div>
-    <div class="input-group">
-      <label>디스플레이 옵션</label>
-      <select id="displayMode">
-        <option value="all" selected>가중치 + 활성화 + 오차영향</option>
-        <option value="weights">가중치 위주</option>
-        <option value="gradients">오차영향(역전파) 위주</option>
-        <option value="updates">변화량 위주</option>
-      </select>
-    </div>
-    <div class="input-group">
-      <label>에지 굵기 배율</label>
-      <input type="number" id="edgeScale" value="2.0" min="0.5" max="8" step="0.5">
-    </div>
-  </div>
-  <div class="panel-right">
-    <div class="panel-right-main">
-      <div class="canvas-wrap"><canvas id="netCanvas"></canvas>
-        <div class="click-hint">뉴런 클릭 → 역전파 오차 &amp; 가중치 정보</div>
-      </div>
-      <div class="detail-sidebar" id="detailSidebar">
-        <div class="dp-head">
-          <h3 id="dpTitle">뉴런 정보</h3>
-          <button class="dp-close" id="dpClose">✕</button>
-        </div>
-        <div class="dp-body">
-          <div class="dp-content">
-            <div class="dp-section">
-              <h4>① 다음 층에서 전달된 오차 신호</h4>
-              <div class="formula" id="dpFormula"></div>
-            </div>
-            <div class="dp-section">
-            <h4>② 이전 뉴런들의 영향 (들어오는 가중치)</h4>
-            <p style="font-size:10px;color:#656d76;margin:-2px 0 4px">오차영향 = 이뉴런오차 × 이전출력값</p>
-            <p style="font-size:10px;color:#0969da;margin:-2px 0 4px">왜? → w₁(수정대상)이 기여한 만큼 = w₁으로 들어온 입력값</p>
-            <table><thead><tr>
-              <th>이전뉴런</th><th style="color:#0969da;font-weight:700">가중치</th><th>이전출력</th><th>오차영향</th><th>비율</th><th>변화량</th>
-            </tr></thead><tbody id="dpWeightBody"></tbody></table>
-          <div id="dpWeightExample" class="ex-calc"></div>
-          </div>
-            <div class="dp-section">
-              <h4>③ Bias(편향)</h4>
-              <table><thead><tr>
-                <th>b값</th><th>오차영향</th><th>변화량</th>
-            </tr></thead><tbody id="dpBiasBody"></tbody></table>
-          <div id="dpBiasExample" class="ex-calc"></div>
-          </div>
-            <div class="dp-section">
-              <h4>④ 출력 계산 (순전파)</h4>
-              <div class="formula" id="dpActivation"></div>
-            </div>
-            <div class="dp-hint">다른 뉴런 클릭 / ✕ / Esc</div>
-          </div>
-          <div class="dp-placeholder">
-            <div style="font-size:32px;opacity:0.3">🧠</div>
-            <div>뉴런을 클릭하면</div>
-            <div>역전파 오차와 가중치 정보가</div>
-            <div>여기에 표시됩니다</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    <div class="ctrl-bar">
-      <button class="btn" id="forwardBtn">▶ 순전파</button>
-      <button class="btn btn-warning" id="backwardBtn">◀ 오차 역전파</button>
-      <button class="btn btn-danger" id="updateBtn">⚡ 가중치 업데이트</button>
-      <span class="sep"></span>
-      <button class="btn btn-primary" id="stepBtn">⏭ 한 스텝 (전체)</button>
-      <button class="btn" id="resetBtn">⟲ 초기화</button>
-      <span class="sep"></span>
-      <span id="autoLabel" style="font-size:12px;color:#656d76">자동:</span>
-      <button class="btn" id="autoBtn">▶ 자동 실행</button>
-      <input type="number" id="autoInterval" value="800" min="100" max="5000" step="100" style="width:60px;padding:4px 6px;background:#ffffff;border:1px solid #d0d7de;border-radius:4px;color:#1f2328;font-size:11px">
-      <span style="font-size:11px;color:#656d76">ms</span>
-      <div class="legend-wrap">
-        <span class="legend-item"><span class="legend-dot pos"></span>양수 가중치</span>
-        <span class="legend-item"><span class="legend-dot neg"></span>음수 가중치</span>
-        <span class="legend-item"><span class="legend-dot grad"></span>오차영향(역전파)</span>
-      </div>
-    </div>
-    <div class="info-bar" id="infoBar">
-      <div class="info-item"><span class="label">상태:</span><span class="value" id="statusDisplay">대기</span></div>
-      <div class="info-item"><span class="label">오차(MSE):</span><span class="value" id="lossDisplay">—</span></div>
-      <div class="info-item"><span class="label">출력:</span><span class="value" id="outputDisplay">—</span></div>
-      <div class="info-item"><span class="label">출력변환:</span><span class="value" id="actDisplay">변환없음</span></div>
-      <div class="status-msg" id="statusMsg">네트워크를 초기화하세요</div>
-    </div>
-  </div>
+<body x-cloak>
+<div class="header">
+    <h1><span class="header__title">순전파 · 역전파 · 가중치 업데이트</span>
+        <span class="header__sub">Backpropagation Visualizer</span></h1>
 </div>
-
-<script>
-// ===== Seeded Random =====
-class SeededRandom {
-  constructor(seed = 42) { this.seed = seed; }
-  next() {
-    this.seed = (this.seed * 1664525 + 1013904223) & 0xffffffff;
-    return (this.seed >>> 0) / 0xffffffff;
-  }
-  randn() {
-    const u1 = this.next(), u2 = this.next();
-    return Math.sqrt(-2 * Math.log(u1 + 1e-10)) * Math.cos(2 * Math.PI * u2);
-  }
-}
-
-// ===== Neural Network =====
-const sig = x => 1 / (1 + Math.exp(-x));
-const sigPrime = x => { const s = sig(x); return s * (1 - s); };
-
-class NeuralNetwork {
-  constructor(layerSizes, rng, outputActivation) {
-    this.layerSizes = layerSizes;
-    this.numLayers = layerSizes.length;
-    this.rng = rng || new SeededRandom(42);
-    this.outputActivation = outputActivation || 'linear';
-    this.weights = [];
-    this.biases = [];
-    for (let l = 1; l < this.numLayers; l++) {
-      const prev = layerSizes[l - 1], curr = layerSizes[l];
-      const w = Array.from({length: curr}, () =>
-        Array.from({length: prev}, () => this.rng.randn() * 0.5));
-      const b = Array.from({length: curr}, () => this.rng.randn() * 0.1);
-      this.weights.push(w);
-      this.biases.push(b);
-    }
-    // cache
-    this.zs = [];
-    this.as = [];
-    this.deltas = [];
-    this.weightGradients = [];
-    this.biasGradients = [];
-    this.input = null;
-    this.target = null;
-    this.loss = null;
-    this.lastUpdate = null;
-    this.phase = 'idle'; // idle | forward | backward | updated
-  }
-
-  forward(input) {
-    this.input = input.slice();
-    this.zs = [];
-    this.as = [input.slice()];
-    for (let l = 0; l < this.weights.length; l++) {
-      const w = this.weights[l], b = this.biases[l];
-      const prevA = this.as[this.as.length - 1];
-      const z = w.map(row => {
-        let sum = 0;
-        for (let j = 0; j < row.length; j++) sum += row[j] * prevA[j];
-        return sum + b[w.indexOf(row)];
-      });
-      this.zs.push(z);
-      const isLast = l === this.weights.length - 1;
-      if (isLast && this.outputActivation === 'linear') {
-        this.as.push(z.slice());
-      } else {
-        this.as.push(z.map(sig));
-      }
-    }
-    this.phase = 'forward';
-    return this.as[this.as.length - 1];
-  }
-
-  backward(target) {
-    this.target = target.slice();
-    const L = this.weights.length;
-    const output = this.as[L];
-    // delta for output layer
-    const deriv = i => this.outputActivation === 'linear' ? 1 : sigPrime(this.zs[L - 1][i]);
-    let delta = output.map((o, i) => (o - target[i]) * deriv(i));
-    this.deltas = [delta.slice()];
-    // backprop
-    for (let l = L - 2; l >= 0; l--) {
-      const nextW = this.weights[l + 1];
-      const z = this.zs[l];
-      const sp = z.map(sigPrime);
-      const prevDelta = this.deltas[this.deltas.length - 1];
-      const newDelta = Array.from({length: this.layerSizes[l + 1]}, (_, i) => {
-        let sum = 0;
-        for (let j = 0; j < nextW.length; j++) sum += nextW[j][i] * prevDelta[j];
-        return sum * sp[i];
-      });
-      this.deltas.unshift(newDelta);
-    }
-    // gradients
-    this.weightGradients = [];
-    this.biasGradients = [];
-    for (let l = 0; l < L; l++) {
-      const aPrev = this.as[l];
-      const d = this.deltas[l];
-      const wg = d.map(dj => aPrev.map(ai => dj * ai));
-      const bg = d.slice();
-      this.weightGradients.push(wg);
-      this.biasGradients.push(bg);
-    }
-    // MSE loss
-    this.loss = output.reduce((s, o, i) => s + (o - target[i]) ** 2, 0) / target.length;
-    this.phase = 'backward';
-    return this.weightGradients;
-  }
-
-  update(lr) {
-    lr = lr ?? parseFloat(document.getElementById('learningRate').value);
-    this.lastUpdate = { weights: [], biases: [] };
-    for (let l = 0; l < this.weights.length; l++) {
-      const wup = this.weights[l].map((row, i) =>
-        row.map((w, j) => -lr * this.weightGradients[l][i][j]));
-      const bup = this.biases[l].map((b, i) => -lr * this.biasGradients[l][i]);
-      this.lastUpdate.weights.push(wup.map(r => r.slice()));
-      this.lastUpdate.biases.push(bup.slice());
-      // apply
-      for (let i = 0; i < this.weights[l].length; i++)
-        for (let j = 0; j < this.weights[l][i].length; j++)
-          this.weights[l][i][j] += wup[i][j];
-      for (let i = 0; i < this.biases[l].length; i++)
-        this.biases[l][i] += bup[i];
-    }
-    this.phase = 'updated';
-    return this.lastUpdate;
-  }
-
-  reset(rng) {
-    if (rng) this.rng = rng;
-    for (let l = 1; l < this.numLayers; l++) {
-      const prev = this.layerSizes[l - 1], curr = this.layerSizes[l];
-      for (let i = 0; i < curr; i++) {
-        for (let j = 0; j < prev; j++)
-          this.weights[l - 1][i][j] = this.rng.randn() * 0.5;
-        this.biases[l - 1][i] = this.rng.randn() * 0.1;
-      }
-    }
-    this.zs = []; this.as = []; this.deltas = []; this.weightGradients = [];
-    this.biasGradients = []; this.input = null; this.target = null;
-    this.loss = null; this.lastUpdate = null; this.phase = 'idle';
-  }
-
-  // Get detailed info for a specific neuron for the detail panel
-  getNeuronInfo(layerIdx, neuronIdx) {
-    if (layerIdx < 1 || layerIdx >= this.numLayers) return null;
-    const wLayer = this.weights[layerIdx - 1];
-    const prevSize = this.layerSizes[layerIdx - 1];
-    const info = {
-      layerIdx, neuronIdx,
-      layerName: layerIdx === this.numLayers - 1 ? '출력' : `은닉${layerIdx}`,
-      bias: this.biases[layerIdx - 1][neuronIdx],
-      biasGrad: this.biasGradients.length ? this.biasGradients[layerIdx - 1][neuronIdx] : null,
-      biasUpdate: this.lastUpdate ? this.lastUpdate.biases[layerIdx - 1][neuronIdx] : null,
-      weights: [],
-      activation: this.as.length > layerIdx ? this.as[layerIdx][neuronIdx] : null,
-      z: this.zs.length >= layerIdx ? this.zs[layerIdx - 1][neuronIdx] : null,
-      delta: this.deltas.length >= layerIdx && this.deltas[layerIdx - 1]
-        ? this.deltas[layerIdx - 1][neuronIdx] : null,
-    };
-    for (let j = 0; j < prevSize; j++) {
-      const w = wLayer[neuronIdx][j];
-      const prevA = this.as.length > layerIdx - 1 ? this.as[layerIdx - 1][j] : null;
-      const grad = this.weightGradients.length
-        ? this.weightGradients[layerIdx - 1][neuronIdx][j] : null;
-      const upd = this.lastUpdate
-        ? this.lastUpdate.weights[layerIdx - 1][neuronIdx][j] : null;
-      info.weights.push({ fromIdx: j, w, prevA, grad, upd });
-    }
-    return info;
-  }
-}
-
-// ===== Canvas Visualizer =====
-class Visualizer {
-  constructor(canvas) {
-    this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
-    this.animId = null;
-    this.animProgress = 0;
-    this.animTarget = 0;
-    this.animPhase = 'idle'; // idle | forwarding | backwarding | updating
-    this.animLayer = -1;
-    this.dpr = 1;
-    this.resize();
-    window.addEventListener('resize', () => this.resize());
-  }
-
-  resize() {
-    const rect = this.canvas.parentElement.getBoundingClientRect();
-    this.dpr = 1; // window.devicePixelRatio || 1;
-    this.w = rect.width;
-    this.h = rect.height;
-    this.canvas.width = this.w * this.dpr;
-    this.canvas.height = this.h * this.dpr;
-    this.canvas.style.width = this.w + 'px';
-    this.canvas.style.height = this.h + 'px';
-    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
-    this.ctx.scale(this.dpr, this.dpr);
-  }
-
-  getNodePos(nn) {
-    const layers = nn.layerSizes;
-    const maxN = Math.max(...layers);
-    const padX = 80, padY = 50;
-    const gapX = (this.w - padX * 2) / Math.max(layers.length - 1, 1);
-    const gapY = (this.h - padY * 2) / Math.max(maxN, 2);
-    const rY = Math.min(gapY * 0.35, 18);
-    const rX = Math.min(gapX * 0.15, 14);
-    const radius = Math.max(Math.min(rX, rY), 8);
-
-    const positions = [];
-    for (let l = 0; l < layers.length; l++) {
-      const n = layers[l];
-      const x = padX + l * gapX;
-      const layerGap = (this.h - padY * 2) / (n + 1);
-      const nodes = [];
-      for (let i = 0; i < n; i++) {
-        const y = padY + (i + 1) * layerGap;
-        nodes.push({ x, y, radius, layer: l, idx: i });
-      }
-      positions.push(nodes);
-    }
-    return positions;
-  }
-
-  getNeuronAt(mx, my) {
-    if (!this.lastPositions) return null;
-    for (const layer of this.lastPositions) {
-      for (const node of layer) {
-        const dx = mx - node.x, dy = my - node.y;
-        if (dx * dx + dy * dy <= (node.radius + 5) * (node.radius + 5))
-          return node;
-      }
-    }
-    return null;
-  }
-
-  draw(nn, options = {}) {
-    const ctx = this.ctx;
-    const { w, h } = this;
-    const displayMode = document.getElementById('displayMode').value;
-    const edgeScale = parseFloat(document.getElementById('edgeScale').value);
-
-    ctx.clearRect(0, 0, w, h);
-
-    if (!nn || !nn.layerSizes) {
-      ctx.fillStyle = '#656d76';
-      ctx.font = '16px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('네트워크를 초기화하세요', w / 2, h / 2);
-      return;
-    }
-
-    const pos = this.getNodePos(nn);
-    this.lastPositions = pos;
-    const layers = nn.layerSizes;
-    const hasForward = nn.as.length > 0;
-    const hasBackward = nn.deltas.length > 0;
-    const hasUpdate = nn.phase === 'updated' && nn.lastUpdate;
-
-    // ----- Edges (connections) -----
-    const maxW = 3.0;
-    for (let l = 0; l < pos.length - 1; l++) {
-      for (let i = 0; i < pos[l].length; i++) {
-        for (let j = 0; j < pos[l + 1].length; j++) {
-          const { x: x1, y: y1 } = pos[l][i];
-          const { x: x2, y: y2 } = pos[l + 1][j];
-          const wVal = nn.weights[l][j][i];
-
-          // base thickness from weight magnitude
-          const absW = Math.abs(wVal);
-          const thickness = Math.max(0.5, Math.min(absW * edgeScale, 6));
-
-          // color
-          let color;
-          if (hasUpdate && displayMode === 'updates') {
-            const upd = nn.lastUpdate.weights[l][j][i];
-            const absUpd = Math.abs(upd);
-            const intensity = Math.min(absUpd * 20, 1);
-            color = upd >= 0
-              ? `rgba(26, 127, 55, ${intensity * 0.7 + 0.1})`
-              : `rgba(207, 34, 46, ${intensity * 0.7 + 0.1})`;
-          } else if (hasBackward && displayMode === 'gradients') {
-            const grad = nn.weightGradients[l][j][i];
-            const absGrad = Math.abs(grad);
-            const intensity = Math.min(absGrad * 5, 1);
-            color = `rgba(154, 103, 0, ${intensity * 0.8 + 0.1})`;
-          } else {
-            if (wVal >= 0) {
-              const intensity = 0.3 + absW / maxW * 0.5;
-              color = `rgba(9, 105, 218, ${Math.min(intensity, 0.8)})`;
-            } else {
-              const intensity = 0.3 + absW / maxW * 0.5;
-              color = `rgba(207, 34, 46, ${Math.min(intensity, 0.8)})`;
-            }
-          }
-          if (hasBackward && (displayMode === 'all' || displayMode === 'gradients')) {
-            const grad = nn.weightGradients[l][j][i];
-            const absGrad = Math.abs(grad);
-            if (absGrad > 0.001) {
-              const gradIntensity = Math.min(absGrad * 8, 1);
-              const baseR = parseInt(color.slice(1,3),16), baseG = parseInt(color.slice(3,5),16), baseB = parseInt(color.slice(5,7),16);
-              // mix with gold for gradient
-              if (color.startsWith('rgba')) {
-                // already processed
-              } else {
-                // overlay gradient indicator
-                color = `rgba(154, 103, 0, ${gradIntensity * 0.6 + 0.1})`;
-              }
-            }
-          }
-
-          // Highlight edges connected to selected neuron (incoming + outgoing)
-          const isSelectedEdge = selectedNeuron && (
-            (l === selectedNeuron.layer - 1 && j === selectedNeuron.idx)
-            || (l === selectedNeuron.layer && i === selectedNeuron.idx)
-          );
-          if (isSelectedEdge) {
-            ctx.shadowColor = 'rgba(9,105,218,0.8)';
-            ctx.shadowBlur = 6;
-          }
-
-          ctx.beginPath();
-          ctx.moveTo(x1, y1);
-          ctx.lineTo(x2, y2);
-          ctx.strokeStyle = color;
-          ctx.lineWidth = isSelectedEdge ? thickness + 3 : thickness;
-          ctx.stroke();
-          ctx.shadowBlur = 0;
-
-          // Show value text on edge (only connected when neuron selected)
-          const showLabel = selectedNeuron ? isSelectedEdge : (layers.length - 1) * Math.max(...layers) * Math.max(...layers) < 60;
-          if (showLabel) {
-            const mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
-            let label, labelColor = '#656d76';
-            if (isSelectedEdge) {
-              label = `가중치 ${wVal.toFixed(4)}`;
-              labelColor = '#0969da';
-            } else if (hasUpdate && (displayMode === 'updates' || displayMode === 'all')) {
-              const upd = nn.lastUpdate.weights[l][j][i];
-              label = `변화 ${upd.toFixed(3)}`;
-            } else if (hasBackward && (displayMode === 'gradients' || displayMode === 'all')) {
-              const grad = nn.weightGradients[l][j][i];
-              label = `영향 ${grad.toFixed(3)}`;
-            } else {
-              label = wVal.toFixed(2);
-            }
-            const fs = isSelectedEdge ? 11 : 9;
-            ctx.font = `${fs}px Consolas, monospace`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'bottom';
-            const a = Math.atan2(y2 - y1, x2 - x1);
-            const off = isSelectedEdge ? 12 : 8;
-            const bw = isSelectedEdge ? 52 : 44;
-            const bh = isSelectedEdge ? 14 : 12;
-            ctx.fillStyle = 'rgba(255,255,255,0.9)';
-            ctx.fillRect(mx - bw/2, my + (a > 0 ? off : -off - bh), bw, bh);
-            ctx.fillStyle = isSelectedEdge ? '#0969da' : labelColor;
-            ctx.font = `${fs}px Consolas, monospace`;
-            ctx.fillText(label, mx, my + (a > 0 ? off + bh - 2 : -off));
-          }
-        }
-      }
-    }
-
-    // ----- Nodes (neurons) -----
-    for (let l = 0; l < pos.length; l++) {
-      for (let node of pos[l]) {
-        const { x, y, radius } = node;
-        const idx = node.idx;
-        let fillColor = '#e8eaed';
-        let strokeColor = '#d0d7de';
-        let valText = '';
-        let valColor = '#656d76';
-
-        if (l === 0 && hasForward) {
-          const v = nn.as[0][idx];
-          valText = v.toFixed(2);
-          valColor = '#0969da';
-          const intensity = Math.min(Math.abs(v) * 2, 1);
-          fillColor = `rgba(9, 105, 218, ${intensity * 0.5})`;
-          strokeColor = '#0969da';
-        } else if (l > 0 && hasForward && l < nn.as.length) {
-          const v = nn.as[l][idx];
-          valText = v.toFixed(3);
-          const intensity = Math.min(Math.abs(v) * 2, 1);
-          if (v > 0.5) {
-            fillColor = `rgba(26, 127, 55, ${intensity * 0.25})`;
-            strokeColor = '#1a7f37';
-            valColor = '#1a7f37';
-          } else {
-            fillColor = `rgba(9, 105, 218, ${intensity * 0.3})`;
-            strokeColor = '#0969da';
-            valColor = '#0969da';
-          }
-        }
-
-        // if backward phase, show delta
-        if (hasBackward && l > 0 && l - 1 < nn.deltas.length) {
-          const d = nn.deltas[l - 1][idx];
-          const absD = Math.abs(d);
-          if (absD > 0.001) {
-            const intensity = Math.min(absD * 10, 1);
-            fillColor = d > 0
-              ? `rgba(154, 103, 0, ${intensity * 0.3})`
-              : `rgba(207, 34, 46, ${intensity * 0.3})`;
-            strokeColor = d > 0 ? '#9a6700' : '#cf222e';
-          }
-        }
-
-        // draw node
-        const isSelectedNode = selectedNeuron && selectedNeuron.layer === l && selectedNeuron.idx === idx;
-
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, Math.PI * 2);
-        ctx.fillStyle = fillColor;
-        ctx.fill();
-        ctx.strokeStyle = isSelectedNode ? '#0969da' : strokeColor;
-        ctx.lineWidth = isSelectedNode ? 3 : 1.5;
-        ctx.stroke();
-
-        // highlight ring for selected neuron
-        if (isSelectedNode) {
-          ctx.beginPath();
-          ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(9,105,218,0.3)';
-          ctx.lineWidth = 2;
-          ctx.setLineDash([3, 3]);
-          ctx.stroke();
-          ctx.setLineDash([]);
-        }
-
-        // label
-        ctx.font = `${Math.max(9, radius * 0.65)}px Consolas, sans-serif`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillStyle = valColor;
-        if (l === 0 && idx === 0 && !hasForward) {
-          ctx.fillStyle = '#656d76';
-          ctx.fillText(`x${idx}`, x, y);
-        } else if (valText) {
-          ctx.fillText(valText, x, y);
-        } else if (l === 0) {
-          ctx.fillStyle = '#656d76';
-          ctx.fillText(`x${idx}`, x, y);
-        }
-
-        // layer label
-        if (idx === 0) {
-          ctx.font = '10px sans-serif';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'bottom';
-          ctx.fillStyle = '#8c959f';
-          let layerName = l === 0 ? '입력층' : l === layers.length - 1 ? '출력층' : `은닉${l}층`;
-          ctx.fillText(layerName, x, y - radius - 6);
-        }
-
-        // bias display (for non-input layers)
-        if (l > 0) {
-          const bIdx = l - 1;
-          let bText = `b=${nn.biases[bIdx][idx].toFixed(3)}`;
-          if (hasBackward && l - 1 < nn.deltas.length) {
-            const d = nn.deltas[l - 1][idx];
-            if (d !== undefined) bText += `  ∂b=${d.toFixed(4)}`;
-          }
-          if (hasUpdate && nn.lastUpdate) {
-            const upb = nn.lastUpdate.biases[bIdx][idx];
-            if (upb !== undefined) bText += `  Δb=${upb.toFixed(4)}`;
-          }
-          ctx.font = '8px Consolas, monospace';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'top';
-          ctx.fillStyle = '#656d76';
-          ctx.fillText(bText, x, y + radius + 2);
-        }
-      }
-    }
-
-    // Output values (if forward done)
-    if (hasForward && layers.length > 0) {
-      const outLayer = pos[layers.length - 1];
-      const outputVals = nn.as[nn.as.length - 1];
-      if (outputVals) {
-        ctx.font = '11px Consolas, sans-serif';
-        ctx.textAlign = 'right';
-        ctx.textBaseline = 'top';
-        const ox = this.w - 12;
-        const oy = 10;
-        ctx.fillStyle = '#1a7f37';
-        ctx.fillText(`출력: [${outputVals.map(v => v.toFixed(4)).join(', ')}]`, ox, oy);
-
-        if (nn.target) {
-          ctx.fillStyle = '#cf222e';
-          ctx.fillText(`목표: [${nn.target.map(v => v.toFixed(4)).join(', ')}]`, ox, oy + 16);
-        }
-      }
-    }
-
-    // Title on canvas
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = '#8c959f';
-    const actName = nn.outputActivation === 'linear' ? '변환없음' : '시그모이드';
-    ctx.fillText(`층: ${layers.join('→')}  은닉=시그모이드  출력=${actName}`, 10, 10);
-  }
-}
-
-// ===== Detail Panel =====
-const dp = document.getElementById('detailSidebar');
-let selectedNeuron = null;
-
-function showNeuronDetail(layer, idx) {
-  if (!nn || layer < 1) return;
-  const info = nn.getNeuronInfo(layer, idx);
-  if (!info) return;
-  selectedNeuron = { layer, idx };
-
-  const layerLabel = info.layerIdx === nn.layerSizes.length - 1 ? '출력' : `은닉${info.layerIdx}`;
-  document.getElementById('dpTitle').textContent =
-    `${layerLabel}층 · 뉴런 #${idx}`;
-
-  const lr = parseFloat(document.getElementById('learningRate').value) || 0.5;
-  const d = info.delta;
-
-  // ===== ① Backpropagation error signal (역전파 오차) — MOST IMPORTANT =====
-  let dHtml = '';
-  if (d !== null) {
-    const isOutput = info.layerIdx === nn.layerSizes.length - 1;
-    if (isOutput) {
-      const out = nn.as[nn.as.length - 1][idx];
-      const target = nn.target ? nn.target[idx] : '?';
-      const error = out - (typeof target === 'number' ? target : 0);
-      const targetStr = typeof target === 'number' ? target.toFixed(4) : String(target);
-      if (nn.outputActivation === 'linear') {
-        dHtml  = `이 뉴런의 오차 = (출력값 - 목표값) × 변화율\n`;
-        dHtml += `  = (${out.toFixed(4)} - ${targetStr}) × 1\n`;
-        dHtml += `  = <span class="hl3">${d.toFixed(6)}</span>\n`;
-        dHtml += `\n→ 출력이 목표보다 ${out > target ? '크면' : '작으면'} (+)오차, ${out < target ? '크면' : '작으면'} (-)오차`;
-        dHtml += `\n\n왜 ×1? → Linear는 출력을 그대로 전달해서 변화율이 항상 1`;
-      } else {
-        const z = info.z;
-        const sp = (s => s * (1 - s))(sig(z));
-        dHtml  = `이 뉴런의 오차 = (출력값 - 목표값) × 시그모이드 변화율\n`;
-        dHtml += `  = (${out.toFixed(4)} - ${targetStr}) × ${sp.toFixed(4)}\n`;
-        dHtml += `  = ${error.toFixed(6)} × ${sp.toFixed(4)}\n`;
-        dHtml += `  = <span class="hl3">${d.toFixed(6)}</span>\n`;
-        dHtml += `\n→ 시그모이드는 0,1 근처에서 둔감해서 변화율이 작아짐`;
-        dHtml += `\n\n왜 ×변화율? → 출력이 0.9면 이미 충분히 큼. 변화율 0.09로 조정을 줄임`;
-      }
-    } else {
-      // Hidden layer
-      const nextW = nn.weights[info.layerIdx];
-      const nextDeltas = nn.deltas[info.layerIdx];
-      if (nextW && nextDeltas) {
-        const terms = nextW.map((row, k) => {
-          return `${row[idx].toFixed(4)}×${nextDeltas[k].toFixed(4)}`;
-        });
-        const sum = nextW.reduce((s, row, k) => s + row[idx] * nextDeltas[k], 0);
-        const a = info.activation;
-        const spVal = a !== null ? a * (1 - a) : '?';
-        const nextLayerName = info.layerIdx === nn.layerSizes.length - 2 ? '출력층' : `은닉${info.layerIdx + 1}층`;
-        dHtml  = `이 뉴런의 오차 = [다음 층 오차들 × 연결가중치 합] × 활성화 변화율\n`;
-        dHtml += `  = [${terms.join(' + ')}]\n`;
-        dHtml += `  = ${sum.toFixed(6)}\n`;
-        dHtml += `  × ${typeof spVal === 'number' ? spVal.toFixed(6) : spVal}  (= a×(1-a))\n`;
-        dHtml += `  = <span class="hl3">${d.toFixed(6)}</span>\n`;
-        dHtml += `\n→ <span class="hl2">${nextLayerName}</span>의 오차들이 가중치를 타고 <span class="hl2">역으로 전파</span>됨`;
-        dHtml += `\n\n왜 ×a×(1-a)? → 시그모이드 민감도. 출력 0.5일 때 가장 민감(0.25)`;
-        dHtml += `\n\n⚠ 자주 하는 착각:\n`;
-        dHtml += `"가중치가 크면 오차도 많이 받아야 하지 않나?"\n`;
-        dHtml += `→ 순전파: z = (w₁×a₁) + (w₂×a₂) + ...\n`;
-        dHtml += `  a₁이 출력에 미친 영향 = w₁ (곱해진 값)\n`;
-        dHtml += `→ 역전파시 <이전 뉴런에 오차를 보낼 때>는\n`;
-        dHtml += `  'w₁이 통로' 역할: a₁이 기여한 만큼(w₁) 오차를 보냄\n`;
-        dHtml += `  그래서 이전 뉴런의 오차 = w₁ × (다음뉴런오차)`;
-      }
-    }
-  } else {
-    dHtml = '아직 역전파 전입니다. ◀ 역전파 버튼을 누르세요.';
-  }
-  document.getElementById('dpFormula').innerHTML = dHtml;
-
-  // ===== ② Weight table with contribution ratio =====
-  const wbody = document.getElementById('dpWeightBody');
-  const grads = info.weights.map(w => Math.abs(w.grad !== null ? w.grad : 0));
-  const totalGrad = grads.reduce((s, v) => s + v, 0);
-  wbody.innerHTML = info.weights.map((w, i) => {
-    const prevLayer = info.layerIdx - 1;
-    const fromName = prevLayer === 0 ? `입력${w.fromIdx}` : `은닉${prevLayer}#${w.fromIdx}`;
-    const wStr = w.w.toFixed(4);
-    const prevAStr = w.prevA !== null ? w.prevA.toFixed(4) : '?';
-    const gradStr = w.grad !== null ? w.grad.toFixed(5) : '—';
-    const updStr = w.upd !== null ? w.upd.toFixed(5) : '—';
-    const ratio = totalGrad > 0 ? (grads[i] / totalGrad * 100) : 0;
-    const gradColor = w.grad !== null && Math.abs(w.grad) > 0.0001 ? 'color:#9a6700' : '';
-    const barW = Math.max(ratio * 2, ratio > 0 ? 4 : 0);
-    const ratioBar = ratio > 0
-      ? `<div style="display:inline-block;width:${Math.min(barW, 40)}px;height:10px;background:rgba(154,103,0,0.25);border-radius:2px;vertical-align:middle;margin-right:3px"></div>`
-      : '';
-    const ratioStr = totalGrad > 0 ? `${ratioBar}${ratio.toFixed(1)}%` : '—';
-    return `<tr><td>${fromName}</td><td class="wcol">${wStr}</td><td>${prevAStr}</td><td style="${gradColor};font-weight:${grads[i] > 0 ? '600' : '400'}">${gradStr}</td><td style="font-size:10px">${ratioStr}</td><td>${updStr}</td></tr>`;
-  }).join('');
-
-  // Example calculation
-  const exEl = document.getElementById('dpWeightExample');
-  let exText = '';
-  if (info.delta !== null && info.weights.length > 0) {
-    const first = info.weights[0];
-    if (first.grad !== null && first.prevA !== null) {
-      const prevLayer = info.layerIdx - 1;
-      const fromName = prevLayer === 0 ? `입력${first.fromIdx}` : `은닉${prevLayer}#${first.fromIdx}`;
-      const lr = parseFloat(document.getElementById('learningRate').value) || 0.05;
-      exText  = `① 오차영향 = (이뉴런오차) × (${fromName}출력)\n`;
-      exText += `            = (${info.delta.toFixed(4)}) × (${first.prevA.toFixed(4)})\n`;
-      exText += `            = ${first.grad.toFixed(5)}\n`;
-      if (first.upd !== null) {
-        exText += `\n② 변화량 = -학습률 × 오차영향\n`;
-        exText += `          = -${lr} × (${first.grad.toFixed(5)})\n`;
-        exText += `          = ${first.upd.toFixed(5)}\n`;
-        exText += `   (오차영향이 (+)면 가중치를 줄이고,\n`;
-        exText += `    (-)면 가중치를 늘려서 오차를 최소화)\n`;
-        exText += `\n③ 새 가중치 = (기존가중치) + (변화량)\n`;
-        exText += `              = (${first.w.toFixed(4)}) + (${first.upd.toFixed(5)})\n`;
-        exText += `              = ${(first.w + first.upd).toFixed(5)}`;
-        exText += `\n\n📌 왜 입력값만 곱할까?\n`;
-        exText += `"w₁을 수정"하려면 "w₁이 z에 얼마나 기여했는지"가 필요\n`;
-        exText += `z = (w₁×a₁) + (w₂×a₂) + ... 에서\n`;
-        exText += `w₁이 기여한 부분 = w₁×a₁ (a₁은 고정, w₁이 변수)\n`;
-        exText += `w₁의 계수 = a₁ → 따라서 입력값 a₁만 남음\n`;
-        exText += `→ 오차영향 = 이뉴런오차 × 연결된입력값`;
-        exText += `\n\n⚠ 자주 하는 착각 (가중치 업데이트):\n`;
-        exText += `"w₁=0.8, w₂=0.2이면 w₁을 4배 더 바꿔야지?"\n`;
-        exText += `→ 아니요. w₁은 이번에 '수정 대상'이지 '통로'가 아님\n`;
-        exText += `→ w₁이 오차에 기여한 만큼 = w₁을 타고 들어온 입력(a₁)\n`;
-        exText += `  (순전파: w₁×a₁, 이 값이 z에 더해짐)\n`;
-        exText += `→ w₁ 변화량 = 학습률 × 오차 × a₁\n`;
-        exText += `→ w₁ 자신의 크기(0.8)는 관계없고, 입력 a₁이 결정함`;
-      }
-    }
-  }
-  exEl.textContent = exText || '';
-
-  // ===== ③ Bias table =====
-  const bbody = document.getElementById('dpBiasBody');
-  const bgStr = info.biasGrad !== null ? info.biasGrad.toFixed(5) : '—';
-  const buStr = info.biasUpdate !== null ? info.biasUpdate.toFixed(5) : '—';
-  bbody.innerHTML = `<tr><td>${info.bias.toFixed(4)}</td><td style="${info.biasGrad !== null && Math.abs(info.biasGrad) > 0.0001 ? 'color:#9a6700;font-weight:600' : ''}">${bgStr}</td><td>${buStr}</td></tr>`;
-  const bEx = document.getElementById('dpBiasExample');
-  if (bEx && info.delta !== null) {
-    const lr = parseFloat(document.getElementById('learningRate').value) || 0.05;
-    bEx.textContent = `바이어스는 가중치와 달리 곱해지는 입력값이 없어서\n오차영향 = 이뉴런오차(${info.delta.toFixed(4)}) 그 자체\n변화량 = -${lr} × (${info.delta.toFixed(4)}) = ${(-lr * info.delta).toFixed(5)}\n\n왜 바이어스? → 각 뉴런의 기준점(활성화 임계값)을 조정`;
-  }
-
-  // ===== ④ Forward pass (참고) =====
-  let actHtml = '';
-  if (info.z !== null) {
-    const terms = info.weights.map((w, i) => {
-      const pn = info.layerIdx - 1 === 0 ? `x${w.fromIdx}` : `a${w.fromIdx}`;
-      return `${w.w.toFixed(3)}×${w.prevA !== null ? w.prevA.toFixed(3) : '?'}`;
-    });
-    actHtml += `가중합(z) = ${terms.join(' + ')} + 편향(${info.bias.toFixed(3)})\n`;
-    actHtml += `         = ${info.z.toFixed(4)}\n`;
-    const isOutput = info.layerIdx === nn.layerSizes.length - 1;
-    const isLinear = isOutput && nn.outputActivation === 'linear';
-    if (isLinear) {
-      actHtml += `출력(a) = z = ${info.activation !== null ? info.activation.toFixed(4) : '?'}  (변환없음)`;
-    } else {
-      actHtml += `출력(a) = 시그모이드(z) = 1/(1+e^(${-info.z.toFixed(4)})) = ${info.activation !== null ? info.activation.toFixed(4) : '?'}`;
-    }
-    if (d !== null) {
-      actHtml += `\n\n활성화 변화율 = a×(1-a) = ${info.activation !== null ? (info.activation * (1 - info.activation)).toFixed(6) : '?'}`;
-    }
-  } else {
-    actHtml = '순전파를 먼저 실행하세요 (▶ 버튼)';
-  }
-  document.getElementById('dpActivation').textContent = actHtml;
-
-  dp.classList.add('has-content');
-  if (nn) viz.draw(nn);
-}
-
-function hideNeuronDetail() {
-  dp.classList.remove('has-content');
-  selectedNeuron = null;
-  document.getElementById('dpTitle').textContent = '뉴런 정보';
-  if (nn) viz.draw(nn);
-}
-
-// ===== Main App =====
-const canvas = document.getElementById('netCanvas');
-const viz = new Visualizer(canvas);
-let nn = null;
-let autoTimer = null;
-let autoRunning = false;
-
-function parseLayers() {
-  const inputSize = parseInt(document.getElementById('inputSize').value) || 2;
-  const hiddenStr = document.getElementById('hiddenLayers').value.trim();
-  const hidden = hiddenStr ? hiddenStr.split(',').map(s => parseInt(s.trim())).filter(n => n > 0) : [];
-  const outputSize = parseInt(document.getElementById('outputSize').value) || 1;
-  return [inputSize, ...hidden, outputSize];
-}
-
-function initNetwork() {
-  if (autoTimer) { clearInterval(autoTimer); autoRunning = false; document.getElementById('autoBtn').textContent = '▶ 자동 실행'; }
-  const layers = parseLayers();
-  const seed = parseInt(document.getElementById('seed').value) || 42;
-  const rng = new SeededRandom(seed);
-  const outAct = document.getElementById('outputActivation').value;
-  nn = new NeuralNetwork(layers, rng, outAct);
-  const inputStr = document.getElementById('inputValues').value.trim();
-  const targetStr = document.getElementById('targetValues').value.trim();
-  const input = inputStr ? inputStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : [];
-  const target = targetStr ? targetStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : [];
-  if (input.length !== layers[0]) {
-    document.getElementById('statusMsg').textContent = `⚠ 입력값 개수(${input.length})가 입력층(${layers[0]})과 다릅니다`;
-  }
-  if (target.length !== layers[layers.length - 1]) {
-    document.getElementById('statusMsg').textContent += ` 목표값 개수(${target.length})가 출력층(${layers[layers.length - 1]})과 다릅니다`;
-  }
-  nn.input = input.length ? input : Array(layers[0]).fill(0);
-  nn.target = target.length ? target : Array(layers[layers.length - 1]).fill(0);
-  document.getElementById('actDisplay').textContent = outAct === 'linear' ? '변환없음' : '시그모이드';
-  hideNeuronDetail();
-  updateUI('네트워크 생성 완료');
-  viz.draw(nn);
-}
-
-function doForward() {
-  if (!nn) return initNetwork();
-  if (!nn.input || nn.input.length !== nn.layerSizes[0]) {
-    const inputStr = document.getElementById('inputValues').value.trim();
-    const input = inputStr ? inputStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : [];
-    if (input.length === nn.layerSizes[0]) nn.input = input;
-  }
-  nn.forward(nn.input);
-  updateUI('앞으로 계산 완료');
-  viz.draw(nn);
-}
-
-function doBackward() {
-  if (!nn || nn.phase === 'idle') { doForward(); }
-  const targetStr = document.getElementById('targetValues').value.trim();
-  const target = targetStr ? targetStr.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n)) : nn.target;
-  if (target.length !== nn.layerSizes[nn.layerSizes.length - 1]) {
-    document.getElementById('statusMsg').textContent = `⚠ 목표값 개수(${target.length}) 불일치`;
-    return;
-  }
-  nn.target = target;
-  nn.backward(nn.target);
-  updateUI(`오차 역전파 완료  |  오차(MSE): ${nn.loss.toFixed(6)}`);
-  viz.draw(nn);
-}
-
-function doUpdate() {
-  if (!nn || nn.phase === 'idle' || nn.phase === 'forward') { doBackward(); }
-  const lr = parseFloat(document.getElementById('learningRate').value) || 0.5;
-  const oldLoss = nn.loss;
-  nn.update(lr);
-  updateUI(`가중치 업데이트 완료  |  학습률=${lr}`);
-  viz.draw(nn);
-}
-
-function doStep() {
-  if (!nn) initNetwork();
-  doForward();
-  doBackward();
-  doUpdate();
-  doForward();
-  if (nn) updateUI(`한 바퀴 완료  |  오차: ${nn.loss.toFixed(6)}`);
-  viz.draw(nn);
-  if (selectedNeuron) showNeuronDetail(selectedNeuron.layer, selectedNeuron.idx);
-}
-
-function resetNetwork() {
-  if (autoTimer) { clearInterval(autoTimer); autoRunning = false; document.getElementById('autoBtn').textContent = '▶ 자동 실행'; }
-  hideNeuronDetail();
-  if (nn) {
-    const seed = parseInt(document.getElementById('seed').value) || 42;
-    nn.reset(new SeededRandom(seed));
-    updateUI('초기화 (난수 재설정)');
-  } else {
-    initNetwork();
-  }
-  viz.draw(nn);
-}
-
-function toggleAuto() {
-  const btn = document.getElementById('autoBtn');
-  if (autoRunning) {
-    clearInterval(autoTimer);
-    autoRunning = false;
-    btn.textContent = '▶ 자동 실행';
-    return;
-  }
-  const interval = parseInt(document.getElementById('autoInterval').value) || 800;
-  autoRunning = true;
-  btn.textContent = '⏹ 정지';
-  if (!nn) initNetwork();
-  autoTimer = setInterval(() => {
-    if (!nn) { initNetwork(); }
-    doStep();
-  }, interval);
-}
-
-function updateUI(msg) {
-  document.getElementById('statusMsg').textContent = msg || '';
-  if (nn) {
-    if (nn.loss !== null) {
-      document.getElementById('lossDisplay').textContent = nn.loss.toFixed(6);
-      const lossEl = document.getElementById('lossDisplay');
-      lossEl.className = 'value' + (nn.loss < 0.05 ? ' good' : nn.loss < 0.2 ? ' warn' : ' bad');
-    }
-    if (nn.as.length > 0) {
-      const out = nn.as[nn.as.length - 1];
-      document.getElementById('outputDisplay').textContent = `[${out.map(v => v.toFixed(4)).join(', ')}]`;
-    }
-    const phases = { idle: '⏸ 대기', forward: '▶ 앞으로 계산', backward: '◀ 오차 역전파', updated: '⚡ 가중치 갱신' };
-    document.getElementById('statusDisplay').textContent = phases[nn.phase] || '대기';
-  }
-}
-
-// ===== Event Binding =====
-document.getElementById('initBtn').addEventListener('click', initNetwork);
-document.getElementById('forwardBtn').addEventListener('click', doForward);
-document.getElementById('backwardBtn').addEventListener('click', doBackward);
-document.getElementById('updateBtn').addEventListener('click', doUpdate);
-document.getElementById('stepBtn').addEventListener('click', doStep);
-document.getElementById('resetBtn').addEventListener('click', resetNetwork);
-document.getElementById('autoBtn').addEventListener('click', toggleAuto);
-document.getElementById('dpClose').addEventListener('click', hideNeuronDetail);
-
-// Canvas click for neuron detail
-canvas.addEventListener('click', e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-  const node = viz.getNeuronAt(mx, my);
-  if (node && node.layer > 0) {
-    showNeuronDetail(node.layer, node.idx);
-  } else {
-    hideNeuronDetail();
-  }
-});
-
-// Re-init on param change
-['inputSize','hiddenLayers','outputSize','seed','outputActivation'].forEach(id => {
-  document.getElementById(id).addEventListener('change', initNetwork);
-});
-
-['inputValues','targetValues','learningRate'].forEach(id => {
-  document.getElementById(id).addEventListener('change', () => {
-    if (nn) viz.draw(nn);
-  });
-});
-
-document.getElementById('displayMode').addEventListener('change', () => {
-  if (nn) viz.draw(nn);
-});
-document.getElementById('edgeScale').addEventListener('change', () => {
-  if (nn) viz.draw(nn);
-});
-
-// Keyboard shortcuts
-document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
-  switch(e.key) {
-    case 'i': case 'I': initNetwork(); break;
-    case 'f': case 'F': doForward(); break;
-    case 'b': case 'B': doBackward(); break;
-    case 'u': case 'U': doUpdate(); break;
-    case 's': case 'S': doStep(); break;
-    case 'r': case 'R': resetNetwork(); break;
-    case ' ': e.preventDefault(); toggleAuto(); break;
-    case 'Escape': hideNeuronDetail(); break;
-  }
-});
-
-// Init on load
-initNetwork();
-</script>
+<div class="main-wrap">
+    <div class="panel-left">
+        <div class="panel-left__group">
+            <label class="panel-left__label">입력층 뉴런 수</label>
+            <input class="panel-left__input panel-left__input--number"
+                   type="number" x-model="inputSize"
+                   @change="initNetwork()" min="1" max="10">
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">은닉층 (쉼표 구분, 레이어 수만큼)</label>
+            <input class="panel-left__input" type="text"
+                   x-model="hiddenLayers" @change="initNetwork()"
+                   placeholder="예: 4,3 (2개 은닉층)">
+            <div class="panel-left__hint">예: <code>4,3</code> → 첫째 은닉 4개, 둘째 은닉 3개</div>
+            <div class="panel-left__hint panel-left__hint--why">
+                왜? → <strong>비선형 변환</strong>이 없으면 층을 깊게 쌓아도 의미 없음</div>
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">출력층 뉴런 수</label>
+            <input class="panel-left__input panel-left__input--number"
+                   type="number" x-model="outputSize"
+                   @change="initNetwork()" min="1" max="10">
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">입력값 (쉼표 구분)</label>
+            <input class="panel-left__input" type="text" x-model="inputValues">
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">목표값 (쉼표 구분)</label>
+            <input class="panel-left__input" type="text" x-model="targetValues">
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">학습률</label>
+            <input class="panel-left__input panel-left__input--number"
+                   type="number" x-model="learningRate"
+                   min="0.001" max="10" step="0.005">
+            <div class="panel-left__hint panel-left__hint--why">
+                왜? → 너무 크면 발산, 너무 작으면 느림. 보통 0.01~0.1 사용</div>
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">출력층 활성화함수</label>
+            <select class="panel-left__select" x-model="outputActivation"
+                    @change="initNetwork()">
+                <option value="sigmoid">시그모이드 (0~1로 제한)</option>
+                <option value="linear">변환없음 (제한 없음)</option>
+            </select>
+            <div class="panel-left__hint">은닉층은 항상 시그모이드. 출력층만 설정 변경 가능</div>
+            <div class="panel-left__hint panel-left__hint--why">
+                왜? → 시그모이드는 출력을 0~1로 제한. 목표가 범위 밖이면 Linear 선택</div>
+        </div>
+        <button class="btn btn--primary" @click="initNetwork()">
+            🔄 네트워크 초기화</button>
+        <div class="panel-left__hint panel-left__hint--why">
+            왜? → 가중치를 랜덤으로 다시 시작. 설정 바꾼 후 반드시 누르세요</div>
+        <hr style="border-color:#d0d7de;margin:2px 0">
+        <div class="panel-left__group">
+            <label class="panel-left__label">난수 시드</label>
+            <input class="panel-left__input panel-left__input--number"
+                   type="number" x-model="seed" @change="initNetwork()">
+            <div class="panel-left__hint">같은 시드 = 같은 초기 가중치</div>
+            <div class="panel-left__hint panel-left__hint--why">
+                왜? → 실험 재현용. 시드가 다르면 시작 가중치가 달라짐</div>
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">디스플레이 옵션</label>
+            <select class="panel-left__select" x-model="displayMode">
+                <option value="all">가중치 + 활성화 + 오차영향</option>
+                <option value="weights">가중치 위주</option>
+                <option value="gradients">오차영향(역전파) 위주</option>
+                <option value="updates">변화량 위주</option>
+            </select>
+        </div>
+        <div class="panel-left__group">
+            <label class="panel-left__label">에지 굵기 배율</label>
+            <input class="panel-left__input panel-left__input--number"
+                   type="number" x-model="edgeScale"
+                   min="0.5" max="8" step="0.5">
+        </div>
+    </div>
+    <div class="panel-right">
+        <div class="panel-right__main">
+            <div class="canvas-wrap">
+                <canvas id="netCanvas" @click="onCanvasClick"></canvas>
+                <div class="click-hint">뉴런 클릭 → 역전파 오차 &amp; 가중치 정보</div>
+            </div>
+            <div class="detail-sidebar">
+                <div class="detail-sidebar__head">
+                    <h3 class="detail-sidebar__title"
+                        x-text="dpData?.title || '뉴런 정보'"></h3>
+                    <button class="detail-sidebar__close"
+                            @click="hideDetail()">✕</button>
+                </div>
+                <div class="detail-sidebar__body">
+                    <div x-show="selectedNeuron">
+                        <div class="detail-sidebar__section">
+                            <h4 class="detail-sidebar__section-title">
+                                ① 다음 층에서 전달된 오차 신호</h4>
+                            <div class="detail-sidebar__formula"
+                                 x-html="dpData?.formulaHtml || ''"></div>
+                        </div>
+                        <div class="detail-sidebar__section">
+                            <h4 class="detail-sidebar__section-title">
+                                ② 이전 뉴런들의 영향 (들어오는 가중치)</h4>
+                            <p style="font-size:10px;color:#656d76;margin:-2px 0 4px">
+                                오차영향 = 이뉴런오차 × 이전출력값</p>
+                            <p style="font-size:10px;color:#0969da;margin:-2px 0 4px">
+                                왜? → w₁(수정대상)이 기여한 만큼 = w₁으로 들어온 입력값</p>
+                            <table class="detail-sidebar__table">
+                                <thead>
+                                    <tr>
+                                        <th>이전뉴런</th>
+                                        <th style="color:#0969da;font-weight:700">가중치</th>
+                                        <th>이전출력</th>
+                                        <th>오차영향</th>
+                                        <th>비율</th>
+                                        <th>변화량</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template x-for="row in (dpData?.weightRows || [])"
+                                              :key="row.fromName">
+                                        <tr>
+                                            <td x-text="row.fromName"></td>
+                                            <td class="detail-sidebar__wcol"
+                                                x-text="row.wStr"></td>
+                                            <td x-text="row.prevAStr"></td>
+                                            <td x-bind:style="row.gradStyle"
+                                                x-text="row.gradStr"></td>
+                                            <td style="font-size:10px">
+                                                <span x-show="row.ratio > 0">
+                                                    <span x-bind:style="'display:inline-block;width:'
+                                                        + Math.min(row.ratioBarWidth, 40) + 'px;height:10px;'
+                                                        + 'background:rgba(154,103,0,0.25);border-radius:2px;'
+                                                        + 'vertical-align:middle;margin-right:3px'"></span>
+                                                </span>
+                                                <span x-text="row.ratio > 0
+                                                    ? row.ratio.toFixed(1) + '%' : '—'"></span>
+                                            </td>
+                                            <td x-text="row.updStr"></td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                            <div class="detail-sidebar__ex-calc"
+                                 x-text="dpData?.weightExample || ''"></div>
+                        </div>
+                        <div class="detail-sidebar__section">
+                            <h4 class="detail-sidebar__section-title">
+                                ③ Bias(편향)</h4>
+                            <table class="detail-sidebar__table">
+                                <thead>
+                                    <tr>
+                                        <th>b값</th><th>오차영향</th><th>변화량</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td x-text="dpData?.biasData?.b || '—'"></td>
+                                        <td x-bind:style="dpData?.biasData?.gradStyle"
+                                            x-text="dpData?.biasData?.bgStr || '—'"></td>
+                                        <td x-text="dpData?.biasData?.buStr || '—'"></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            <div class="detail-sidebar__ex-calc"
+                                 x-text="dpData?.biasExample || ''"></div>
+                        </div>
+                        <div class="detail-sidebar__section">
+                            <h4 class="detail-sidebar__section-title">
+                                ④ 출력 계산 (순전파)</h4>
+                            <div class="detail-sidebar__formula"
+                                 x-text="dpData?.activationText || ''"></div>
+                        </div>
+                        <div class="detail-sidebar__hint">
+                            다른 뉴런 클릭 / ✕ / Esc</div>
+                    </div>
+                    <div x-show="!selectedNeuron"
+                         class="dp-placeholder"
+                         style="display:flex;flex-direction:column;align-items:center;
+                                justify-content:center;height:100%;min-height:200px;
+                                color:#8c959f;font-size:13px;gap:8px;text-align:center;padding:20px">
+                        <div style="font-size:32px;opacity:0.3">🧠</div>
+                        <div>뉴런을 클릭하면</div>
+                        <div>역전파 오차와 가중치 정보가</div>
+                        <div>여기에 표시됩니다</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="ctrl-bar">
+            <button class="btn" @click="doForward()">▶ 순전파</button>
+            <button class="btn btn--warning" @click="doBackward()">◀ 오차 역전파</button>
+            <button class="btn btn--danger" @click="doUpdate()">⚡ 가중치 업데이트</button>
+            <span class="ctrl-bar__sep"></span>
+            <button class="btn btn--primary" @click="doStep()">⏭ 한 스텝 (전체)</button>
+            <button class="btn" @click="resetNetwork()">⟲ 초기화</button>
+            <span class="ctrl-bar__sep"></span>
+            <span style="font-size:12px;color:#656d76">자동:</span>
+            <button class="btn" @click="toggleAuto()"
+                    x-text="autoRunning ? '⏹ 정지' : '▶ 자동 실행'"></button>
+            <input class="panel-left__input panel-left__input--number"
+                   type="number" x-model="autoInterval"
+                   min="100" max="5000" step="100"
+                   style="width:60px;padding:4px 6px">
+            <span style="font-size:11px;color:#656d76">ms</span>
+            <div class="legend-wrap">
+                <span class="legend-wrap__item">
+                    <span class="legend-wrap__dot legend-wrap__dot--pos"></span>양수 가중치</span>
+                <span class="legend-wrap__item">
+                    <span class="legend-wrap__dot legend-wrap__dot--neg"></span>음수 가중치</span>
+                <span class="legend-wrap__item">
+                    <span class="legend-wrap__dot legend-wrap__dot--grad"></span>오차영향(역전파)</span>
+            </div>
+        </div>
+        <div class="info-bar">
+            <div class="info-bar__item">
+                <span class="info-bar__label">상태:</span>
+                <span class="info-bar__value" x-text="phase">대기</span>
+            </div>
+            <div class="info-bar__item">
+                <span class="info-bar__label">오차(MSE):</span>
+                <span class="info-bar__value"
+                      :class="nn?.loss < 0.05
+                          ? 'info-bar__value--good'
+                          : nn?.loss < 0.2
+                              ? 'info-bar__value--warn'
+                              : nn?.loss !== null
+                                  ? 'info-bar__value--bad'
+                                  : ''"
+                      x-text="loss">—</span>
+            </div>
+            <div class="info-bar__item">
+                <span class="info-bar__label">출력:</span>
+                <span class="info-bar__value" x-text="output">—</span>
+            </div>
+            <div class="info-bar__item">
+                <span class="info-bar__label">출력변환:</span>
+                <span class="info-bar__value" x-text="actDisplay">변환없음</span>
+            </div>
+            <div class="status-msg"
+                 :class="{'status-msg--active': nn?.phase !== 'idle'}"
+                 x-text="statusMsg">네트워크를 초기화하세요</div>
+        </div>
+    </div>
+</div>
 </body>
 </html>

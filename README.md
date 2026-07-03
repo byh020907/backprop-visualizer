@@ -1,13 +1,13 @@
 # 순전파 · 역전파 · 가중치 업데이트 시각화
 
-단일 HTML 파일로 동작하는 신경망 학습 시각화 도구입니다. Canvas 2D를 사용하며 외부 라이브러리가 필요 없습니다.
+Canvas 2D + Alpine.js 기반의 신경망 학습 시각화 도구입니다.
 
 ## URL
 https://byh020907.github.io/backprop-visualizer/
 
 ## 사용법
 
-`index.html`을 브라우저에서 열면 됩니다.
+로컬에서 index.html을 브라우저로 열거나 GitHub Pages에 접속하면 됩니다.
 
 ### 기본 조작
 1. **설정 패널**(좌측)에서 네트워크 구조와 학습 파라미터를 조정
@@ -44,5 +44,16 @@ https://byh020907.github.io/backprop-visualizer/
 ## 파일 구조
 ```
 backprop_visualization/
-└── index.html       # 단일 파일, 모든 HTML/CSS/JS 포함
+├── index.html           # Alpine.js 템플릿 (CDN 로드, x-data="app")
+├── src/
+│   ├── styles.css       # 모든 스타일
+│   ├── random.js        # SeededRandom 난수 생성기
+│   ├── network.js       # NeuralNetwork 클래스 (순전파/역전파/업데이트)
+│   ├── visualizer.js    # Visualizer 클래스 (Canvas 2D 렌더링)
+│   ├── ui.js            # appStore() — Alpine.js 반응형 상태 정의
+│   └── app.js           # 진입점: import + Alpine.data('app', appStore) 등록
+└── DEV-RULE.md          # 개발 규칙
 ```
+
+## 라이선스
+MIT
