@@ -4,8 +4,86 @@ class Visualizer {
         this.ctx = canvas.getContext('2d');
         this.dpr = 1;
         this.lastPositions = null;
+        this.zoom = 1;
+        this.panX = 0;
+        this.panY = 0;
+        this._dragPrev = null;
+        this._dragMoved = false;
+        this._rafId = null;
+        this.onChange = null;
         this.resize();
         window.addEventListener('resize', () => this.resize());
+        this._bindEvents();
+    }
+
+    _bindEvents() {
+        const c = this.canvas;
+
+        c.addEventListener('wheel', e => {
+            e.preventDefault();
+            const rect = c.getBoundingClientRect();
+            const cx = e.clientX - rect.left;
+            const cy = e.clientY - rect.top;
+            const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+            const next = this.zoom * factor;
+            if (next < 0.2 || next > 5) return;
+            this.panX = cx - (cx - this.panX) * (next / this.zoom);
+            this.panY = cy - (cy - this.panY) * (next / this.zoom);
+            this.zoom = next;
+            this._scheduleUpdate();
+        }, { passive: false });
+
+        c.addEventListener('mousedown', e => {
+            e.preventDefault();
+            this._dragPrev = { x: e.clientX, y: e.clientY };
+            this._dragMoved = false;
+            c.style.cursor = 'grabbing';
+        });
+
+        c.addEventListener('mousemove', e => {
+            if (!this._dragPrev) return;
+            const dx = e.clientX - this._dragPrev.x;
+            const dy = e.clientY - this._dragPrev.y;
+            if (Math.abs(dx) > 2 || Math.abs(dy) > 2) {
+                this._dragMoved = true;
+            }
+            this.panX += dx;
+            this.panY += dy;
+            this._dragPrev = { x: e.clientX, y: e.clientY };
+            this._scheduleUpdate();
+        });
+
+        const endDrag = () => {
+            if (this._dragPrev) {
+                this._dragPrev = null;
+                c.style.cursor = 'default';
+            }
+        };
+        c.addEventListener('mouseup', endDrag);
+        c.addEventListener('mouseleave', endDrag);
+
+        c.addEventListener('dblclick', e => {
+            this.zoom = 1;
+            this.panX = 0;
+            this.panY = 0;
+            this._dragMoved = false;
+            this._scheduleUpdate();
+        });
+    }
+
+    _scheduleUpdate() {
+        if (this._rafId) return;
+        this._rafId = requestAnimationFrame(() => {
+            this._rafId = null;
+            if (this.onChange) this.onChange();
+        });
+    }
+
+    screenToWorld(sx, sy) {
+        return {
+            x: (sx - this.panX) / this.zoom,
+            y: (sy - this.panY) / this.zoom,
+        };
     }
 
     resize() {
@@ -48,12 +126,13 @@ class Visualizer {
         return positions;
     }
 
-    getNeuronAt(mx, my) {
+    getNeuronAt(sx, sy) {
         if (!this.lastPositions) return null;
+        const w = this.screenToWorld(sx, sy);
         for (const layer of this.lastPositions) {
             for (const node of layer) {
-                const dx = mx - node.x;
-                const dy = my - node.y;
+                const dx = w.x - node.x;
+                const dy = w.y - node.y;
                 if (dx * dx + dy * dy
                     <= (node.radius + 5) * (node.radius + 5)) {
                     return node;
@@ -70,6 +149,7 @@ class Visualizer {
         const edgeScale = options.edgeScale || 2.0;
         const selectedNeuron = options.selectedNeuron || null;
 
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
         ctx.clearRect(0, 0, w, h);
 
         if (!nn || !nn.layerSizes) {
@@ -87,6 +167,8 @@ class Visualizer {
         const hasBackward = nn.deltas.length > 0;
         const hasUpdate = nn.phase === 'updated' && nn.lastUpdate;
         const maxW = 3.0;
+
+        ctx.setTransform(this.zoom, 0, 0, this.zoom, this.panX, this.panY);
 
         // ----- Edges -----
         for (let l = 0; l < pos.length - 1; l++) {
@@ -329,6 +411,8 @@ class Visualizer {
                 }
             }
         }
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
 
         // ----- Output / Target text -----
         if (hasForward && layers.length > 0) {

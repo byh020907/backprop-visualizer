@@ -33,6 +33,7 @@ export default function appStore({ viz }) {
         init() {
             this.$nextTick(() => {
                 this.viz.resize();
+                this.viz.onChange = () => this.redraw();
                 this.initNetwork();
                 this.$watch('displayMode', () => this.redraw());
                 this.$watch('edgeScale', () => this.redraw());
@@ -92,6 +93,7 @@ export default function appStore({ viz }) {
         initNetwork() {
             this.stopAuto();
             this.hideDetail();
+            this.resetView();
             const layers = this.parseLayers();
             const rng = new SeededRandom(this.seed);
             this.nn = new NeuralNetwork(layers, rng, this.outputActivation);
@@ -183,6 +185,7 @@ export default function appStore({ viz }) {
         resetNetwork() {
             this.stopAuto();
             this.hideDetail();
+            this.resetView();
             if (this.nn) {
                 this.nn.reset(new SeededRandom(this.seed));
                 this.statusMsg = '초기화 (난수 재설정)';
@@ -208,9 +211,20 @@ export default function appStore({ viz }) {
             }, this.autoInterval);
         },
 
+        resetView() {
+            this.viz.zoom = 1;
+            this.viz.panX = 0;
+            this.viz.panY = 0;
+            this.viz._dragMoved = false;
+        },
+
         // ---- canvas click ----
         onCanvasClick(e) {
             if (!this.viz.lastPositions) return;
+            if (this.viz._dragMoved) {
+                this.viz._dragMoved = false;
+                return;
+            }
             const rect = e.target.getBoundingClientRect();
             const mx = e.clientX - rect.left;
             const my = e.clientY - rect.top;
